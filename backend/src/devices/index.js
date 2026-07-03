@@ -172,6 +172,110 @@ export function unsubscribe(callback) {
   subscribers.delete(callback);
 }
 
+/** Return active (unresolved) alerts from the DB. */
+export async function getActiveAlerts() {
+  return db.fetchActiveAlerts();
+}
+
+/**
+ * Compute today's power usage from the history table.
+ *
+ * Returns { currentWatts, estimatedKwhToday }.
+ *
+ * currentWatts — sum of all device powerWatts from the
+ *   in-memory cache (instant, no DB hit).
+ *
+ * estimatedKwhToday — computed by integrating power over
+ *   time using the persistent history table:
+ *
+ *   For each device:
+ *     1. Fetch all history rows since 9 AM today.
+ *     2. Also fetch the last state before 9 AM (to know the
+ *        power level at the start of the window).
+ *     3. Sort rows by created_at.
+ *     4. For consecutive pairs (row_i → row_{i+1}):
+ *          Wh += prev.power_watts × (row_{i+1}.created_at
+ *                                     - row_i.created_at)
+ *                                    / 3_600_000
+ *     5. For the last row → now:
+ *          Wh += last.power_watts × (now - last.created_at)
+ *                                   / 3_600_000
+ *
+ *   Total Wh ÷ 1000 → kWh (rounded to 2 decimals).
+ *
+ * This works across restarts because the history table is
+ * persistent — it does not rely on uptime counters.
+ */
+export async function getUsageToday() {
+  const now = new Date();
+  const today9am = new Date(now);
+  today9am.setHours(9, 0, 0, 0);
+
+  // currentWatts from cache (instant, no DB hit)
+  const currentWatts = Array.from(cache.values()).reduce(
+    (sum, d) => sum + d.powerWatts, 0
+  );
+
+  // Fetch history around the 9 AM cutoff
+  const historyAfter  = await db.fetchHistorySince(today9am.toISOString());
+  const historyBefore = await db.fetchAllHistoryBefore(today9am.toISOString());
+
+  // Latest row per device before 9 AM → initial state at cutoff
+  const initState = {};
+  for (const row of historyBefore) {
+    if (
+      !initState[row.device_id] ||
+      new Date(row.created_at) > new Date(initState[row.device_id].created_at)
+    ) {
+      initState[row.device_id] = row;
+    }
+  }
+
+  // Group rows after 9 AM by device_id
+  const byDevice = {};
+  for (const row of historyAfter) {
+    if (!byDevice[row.device_id]) byDevice[row.device_id] = [];
+    byDevice[row.device_id].push(row);
+  }
+
+  let totalWh = 0;
+
+  for (const [deviceId, rows] of Object.entries(byDevice)) {
+    rows.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+    // If we have no state at 9 AM, fall back to the device's
+    // current cache entry (it may have been static all day).
+    let prev = initState[deviceId] ?? {
+      power_watts: cache.get(deviceId)?.powerWatts ?? 0,
+      created_at:  today9am.toISOString(),
+    };
+
+    for (const row of rows) {
+      const durHours =
+        (new Date(row.created_at) - new Date(prev.created_at)) / 3_600_000;
+      totalWh += prev.power_watts * durHours;
+      prev = row;
+    }
+
+    // Last segment from the final change until now
+    const finalHours =
+      (now - new Date(prev.created_at)) / 3_600_000;
+    totalWh += prev.power_watts * finalHours;
+  }
+
+  return {
+    currentWatts,
+    estimatedKwhToday: Math.round((totalWh / 1000) * 100) / 100,
+  };
+}
+
+/** Return devices for a room identified by its slug ("drawing", "work1", "work2"). Returns null for unknown slugs. */
+export function getDevicesByRoomSlug(slug) {
+  const room = ROOMS.find(r => r.slug === slug);
+  if (!room) return null;
+  return getDevicesByRoom(room.name);
+}
+
 /**
  * Start the device simulator.
  *

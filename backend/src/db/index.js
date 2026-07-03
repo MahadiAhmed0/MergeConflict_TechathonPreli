@@ -55,6 +55,21 @@ export async function fetchHistorySince(timestamp) {
   return data ?? [];
 }
 
+/**
+ * Fetch all history rows created before timestamp.
+ * Used to determine each device's state at a given cutoff.
+ * Deduplication (latest per device) is handled by the caller.
+ */
+export async function fetchAllHistoryBefore(timestamp) {
+  const { data, error } = await supabase
+    .from(HISTORY_TABLE)
+    .select("*")
+    .lt("created_at", timestamp)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
 /* ── alerts ────────────────────────────────────────────── */
 
 export async function insertAlert(alert) {
