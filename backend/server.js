@@ -23,7 +23,18 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: err.message });
 });
 
-const server = app.listen(PORT, async () => {
+const server = app.listen(PORT);
+
+server.on("error", (err) => {
+  if (err.code === "EADDRINUSE") {
+    console.error(`Port ${PORT} is already in use. Stop the existing process or use a different PORT.`);
+    process.exit(1);
+  }
+  console.error(err);
+  process.exit(1);
+});
+
+server.on("listening", async () => {
   console.log(`Server listening on http://localhost:${PORT}`);
 
   try {
