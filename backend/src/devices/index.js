@@ -177,6 +177,16 @@ export async function getActiveAlerts() {
   return db.fetchActiveAlerts();
 }
 
+/** Persist a new alert. Returns the inserted row with generated id. */
+export async function insertAlert(alertData) {
+  return db.insertAlert(alertData);
+}
+
+/** Mark an alert as resolved by id. */
+export async function resolveAlert(id) {
+  return db.resolveAlert(id);
+}
+
 /**
  * Compute today's power usage from the history table.
  *

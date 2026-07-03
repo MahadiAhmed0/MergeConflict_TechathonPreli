@@ -16,7 +16,7 @@ Required env vars: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (server exits wit
 - **`src/devices/`** — the ONLY module that imports `src/db/`. Owns cache + business logic.
   - API, realtime, alerts, and bot must talk to devices **only** through its exported interface (`getAllDevices`, `getDevice`, `setDeviceState`, `subscribe`, `unsubscribe`).
   - `setDeviceState(id, "on"|"off")` awaits a Postgres round-trip before updating the cache — this is intentional for data safety.
-- The Discord bot is a **separate process** started via `npm run bot --prefix backend` (not part of `server.js`).
+- The Discord bot is a **separate process** started via `npm run bot --prefix backend` (not part of `server.js`). It talks to the backend **only** through REST API calls — never imports devices/db directly.
 
 ## Fixed device layout (15 total)
 
@@ -36,14 +36,24 @@ Tables (`devices`, `device_history`, `alerts`) must exist. If `devices` is empty
 
 `startSimulator(5000)` runs automatically in `server.js` — toggles 0–2 random devices every 5 s. Remove or configure it for tests.
 
+## Alert engine
+
+`startAlertEngine(onNewAlert)` runs in `server.js` every 60 s. Checks two conditions: after_hours (outside 9AM–5PM) and room_stuck_on (all devices in a room on for >2h). Alerts persist to `alerts` table in Postgres, deduplicated by (type, room). New alerts fire the `onNewAlert` callback which broadcasts via WebSocket and logs to console.
+
 ## ESM
 
 The project uses `"type": "module"` — use `import`/`export`, **not** `require`.
 
 ## API routes
 
-All under `GET /api/devices` prefix:
-- `GET /api/devices` — list all
-- `GET /api/devices/room/:room` — filter by room name
-- `GET /api/devices/:id` — single device
-- `PATCH /api/devices/:id/state` — body: `{ "status": "on"|"off" }`
+All under `/api` prefix:
+- `GET /api/devices` — all devices grouped by room
+- `GET /api/devices/:room` — filter by room slug (`drawing`|`work1`|`work2`)
+- `POST /api/devices/:id/toggle` — flip one device's status (body not required)
+- `GET /api/power` — `{ totalWatts, byRoom }`
+- `GET /api/usage/today` — `{ currentWatts, estimatedKwhToday }`
+- `GET /api/alerts` — active (unresolved) alerts
+
+## Discord bot
+
+Commands: `!status` (room-by-room summary), `!room <slug>` (single room), `!usage` (current W + kWh). Proactive alerts poll `GET /api/alerts` every 15 s and post to `DISCORD_ALERT_CHANNEL_ID`. Optional LLM enhancement behind `USE_LLM=true` + `OPENAI_API_KEY`.

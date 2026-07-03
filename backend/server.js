@@ -4,7 +4,7 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import apiRouter from "./src/api/index.js";
-import { attachWebSocket } from "./src/realtime/index.js";
+import { attachWebSocket, broadcastAlert } from "./src/realtime/index.js";
 import { startAlertEngine } from "./src/alerts/index.js";
 import { initDevices, startSimulator } from "./src/devices/index.js";
 
@@ -38,5 +38,6 @@ const server = app.listen(PORT, async () => {
 attachWebSocket(server);
 
 startAlertEngine((alert) => {
-  console.log("Alert engine:", alert.message);
+  broadcastAlert(alert);
+  console.log("Alert:", alert.message);
 });
