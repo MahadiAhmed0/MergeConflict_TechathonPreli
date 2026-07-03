@@ -89,4 +89,46 @@ router.get("/alerts", async (_req, res, next) => {
   }
 });
 
+/* ── POST /api/simulator/toggle ───────────────────────────
+ * Start or stop the auto-simulator. */
+router.post("/simulator/toggle", (_req, res) => {
+  if (devices.isSimulatorRunning()) {
+    devices.stopSimulator();
+    res.json({ running: false });
+  } else {
+    devices.startSimulator(5000);
+    res.json({ running: true });
+  }
+});
+
+/* ── GET /api/simulator/status ────────────────────────────
+ * Returns whether the simulator is currently running. */
+router.get("/simulator/status", (_req, res) => {
+  res.json({ running: devices.isSimulatorRunning() });
+});
+
+/* ── POST /api/devices/all/on ──────────────────────────────
+ * Turn every device on. */
+router.post("/devices/all/on", async (_req, res, next) => {
+  try {
+    const all = devices.getAllDevices();
+    await Promise.all(all.map(d => devices.setDeviceState(d.id, "on")));
+    res.json({ message: "All devices turned on", count: all.length });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* ── POST /api/devices/all/off ─────────────────────────────
+ * Turn every device off. */
+router.post("/devices/all/off", async (_req, res, next) => {
+  try {
+    const all = devices.getAllDevices();
+    await Promise.all(all.map(d => devices.setDeviceState(d.id, "off")));
+    res.json({ message: "All devices turned off", count: all.length });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;
