@@ -49,23 +49,18 @@ export async function fetchHistorySince(timestamp) {
   const { data, error } = await supabase
     .from(HISTORY_TABLE)
     .select("*")
-    .gte("created_at", timestamp)
-    .order("created_at", { ascending: true });
+    .gte("changed_at", timestamp)
+    .order("changed_at", { ascending: true });
   if (error) throw error;
   return data ?? [];
 }
 
-/**
- * Fetch all history rows created before timestamp.
- * Used to determine each device's state at a given cutoff.
- * Deduplication (latest per device) is handled by the caller.
- */
 export async function fetchAllHistoryBefore(timestamp) {
   const { data, error } = await supabase
     .from(HISTORY_TABLE)
     .select("*")
-    .lt("created_at", timestamp)
-    .order("created_at", { ascending: false });
+    .lt("changed_at", timestamp)
+    .order("changed_at", { ascending: false });
   if (error) throw error;
   return data ?? [];
 }
@@ -86,7 +81,7 @@ export async function fetchActiveAlerts() {
   const { data, error } = await supabase
     .from(ALERTS_TABLE)
     .select("*")
-    .is("resolved_at", null)
+    .eq("resolved", false)
     .order("created_at", { ascending: false });
   if (error) throw error;
   return data ?? [];
@@ -95,7 +90,7 @@ export async function fetchActiveAlerts() {
 export async function resolveAlert(id) {
   const { data, error } = await supabase
     .from(ALERTS_TABLE)
-    .update({ resolved_at: new Date().toISOString() })
+    .update({ resolved: true })
     .eq("id", id)
     .select()
     .single();

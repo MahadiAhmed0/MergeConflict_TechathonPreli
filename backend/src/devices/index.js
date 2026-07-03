@@ -13,6 +13,8 @@
  *   subscribe(callback)
  *   unsubscribe(callback)
  *   startSimulator(intervalMs)
+ *   stopSimulator()
+ *   isSimulatorRunning()
  *
  * Trade-off: every toggle costs a Postgres round-trip instead
  * of being instant in-memory. For 15 devices and hackathon-scale
@@ -41,6 +43,10 @@ const LIGHT_POWER = 15;
 
 const cache = new Map();
 
+/* ─ simulator handle ───────────────────────────────────── */
+
+let simulatorHandle = null;
+
 /* ─ subscriber registry ────────────────────────────────── */
 
 const subscribers = new Set();
@@ -49,6 +55,33 @@ function notifySubscribers(action, device) {
   for (const cb of subscribers) {
     try { cb(action, device); } catch { /* per-subscriber */ }
   }
+}
+
+/* ─ DB / cache mapping ────────────────────────────────── */
+
+/* DB rows use snake_case; the cache + public interface use camelCase. */
+function fromDbRow(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    type: row.type,
+    room: row.room,
+    status: row.status,
+    powerWatts: row.power_watts,
+    lastChanged: row.last_changed,
+  };
+}
+
+function toDbRow(d) {
+  return {
+    id: d.id,
+    name: d.name,
+    type: d.type,
+    room: d.room,
+    status: d.status,
+    power_watts: d.powerWatts,
+    last_changed: d.lastChanged,
+  };
 }
 
 /* ─ helpers ────────────────────────────────────────────── */
@@ -105,13 +138,13 @@ export async function initDevices() {
   if (rows.length === 0) {
     const devices = randomInitialState();
     for (const d of devices) {
-      await db.upsertDevice(d);
+      await db.upsertDevice(toDbRow(d));
       cache.set(d.id, d);
     }
     console.log(`Seeded ${devices.length} devices into Postgres.`);
   } else {
     for (const row of rows) {
-      cache.set(row.id, row);
+      cache.set(row.id, fromDbRow(row));
     }
     console.log(`Loaded ${rows.length} devices from Postgres into cache.`);
   }
@@ -153,7 +186,7 @@ export async function setDeviceState(id, status) {
 
   const updated = { ...prev, status, powerWatts, lastChanged };
 
-  await db.upsertDevice(updated);
+  await db.upsertDevice(toDbRow(updated));
   await db.insertHistoryRow(id, status, powerWatts);
 
   cache.set(id, updated);
@@ -235,7 +268,7 @@ export async function getUsageToday() {
   for (const row of historyBefore) {
     if (
       !initState[row.device_id] ||
-      new Date(row.created_at) > new Date(initState[row.device_id].created_at)
+      new Date(row.changed_at) > new Date(initState[row.device_id].changed_at)
     ) {
       initState[row.device_id] = row;
     }
@@ -251,25 +284,22 @@ export async function getUsageToday() {
   let totalWh = 0;
 
   for (const [deviceId, rows] of Object.entries(byDevice)) {
-    rows.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    rows.sort((a, b) => new Date(a.changed_at) - new Date(b.changed_at));
 
-    // If we have no state at 9 AM, fall back to the device's
-    // current cache entry (it may have been static all day).
     let prev = initState[deviceId] ?? {
       power_watts: cache.get(deviceId)?.powerWatts ?? 0,
-      created_at:  today9am.toISOString(),
+      changed_at:  today9am.toISOString(),
     };
 
     for (const row of rows) {
       const durHours =
-        (new Date(row.created_at) - new Date(prev.created_at)) / 3_600_000;
+        (new Date(row.changed_at) - new Date(prev.changed_at)) / 3_600_000;
       totalWh += prev.power_watts * durHours;
       prev = row;
     }
 
-    // Last segment from the final change until now
     const finalHours =
-      (now - new Date(prev.created_at)) / 3_600_000;
+      (now - new Date(prev.changed_at)) / 3_600_000;
     totalWh += prev.power_watts * finalHours;
   }
 
@@ -297,12 +327,14 @@ export function getDevicesByRoomSlug(slug) {
  * (currently Math.floor(Math.random() * 3) → 0, 1, or 2).
  */
 export function startSimulator(intervalMs = 5000) {
+  if (simulatorHandle) return; // already running
+
   const ids = Array.from(cache.keys());
   if (ids.length === 0) return;
 
   console.log(`Simulator started (interval=${intervalMs}ms, ${ids.length} devices).`);
 
-  const handle = setInterval(() => {
+  simulatorHandle = setInterval(() => {
     const count = Math.floor(Math.random() * 3); // 0–2
     if (count === 0) return;
 
@@ -317,6 +349,16 @@ export function startSimulator(intervalMs = 5000) {
       );
     }
   }, intervalMs);
+}
 
-  return () => clearInterval(handle);
+export function stopSimulator() {
+  if (simulatorHandle) {
+    clearInterval(simulatorHandle);
+    simulatorHandle = null;
+    console.log("Simulator stopped.");
+  }
+}
+
+export function isSimulatorRunning() {
+  return simulatorHandle !== null;
 }

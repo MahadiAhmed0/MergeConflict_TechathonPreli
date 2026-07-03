@@ -62,10 +62,9 @@ async function checkAlerts(onNewAlert) {
 
     if (isOffHours && roomHasDeviceOn && !afterHoursAlert) {
       const alert = await devices.insertAlert({
-        type:      "after_hours",
-        message:   `Devices in ${room} are on outside office hours (9 AM–5 PM)`,
+        type:    "after_hours",
+        message: `Devices in ${room} are on outside office hours (9 AM–5 PM)`,
         room,
-        timestamp: now.toISOString(),
       });
       onNewAlert(alert);
     } else if (!isOffHours && afterHoursAlert) {
@@ -87,10 +86,9 @@ async function checkAlerts(onNewAlert) {
 
     if (stuckDuration >= STUCK_ON_MS && !stuckOnAlert) {
       const alert = await devices.insertAlert({
-        type:      "room_stuck_on",
-        message:   `${room} has been fully powered for over 2 hours`,
+        type:    "room_stuck_on",
+        message: `${room} has been fully powered for over 2 hours`,
         room,
-        timestamp: now.toISOString(),
       });
       onNewAlert(alert);
     }
