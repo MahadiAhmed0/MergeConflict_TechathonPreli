@@ -32,10 +32,31 @@ const TOKEN            = process.env.DISCORD_BOT_TOKEN;
 const ALERT_CHANNEL_ID = process.env.DISCORD_ALERT_CHANNEL_ID;
 const API_BASE         = process.env.API_BASE_URL || "http://localhost:3001";
 const USE_LLM          = process.env.USE_LLM === "true";
-const LLM_API_KEY      = process.env.LLM_API_KEY;
-const LLM_API_URL      = process.env.LLM_API_URL || "https://api.openai.com/v1/chat/completions";
-const LLM_MODEL        = process.env.LLM_MODEL || "gpt-4o-mini";
 const ALERT_POLL_MS    = parseInt(process.env.ALERT_POLL_INTERVAL_MS, 10) || 15_000;
+
+/* ── multi-LLM config (up to 5 keys, tried in order, up to 3 attempts) ── */
+
+const DEFAULT_URL   = "https://api.openai.com/v1/chat/completions";
+const DEFAULT_MODEL = "gpt-4o-mini";
+
+const llmConfigs = [];
+for (let i = 1; i <= 5; i++) {
+  const key = process.env[`LLM_API_KEY_${i}`];
+  if (!key) continue;
+  llmConfigs.push({
+    key,
+    url:   process.env[`LLM_API_URL_${i}`]   || process.env.LLM_API_URL   || DEFAULT_URL,
+    model: process.env[`LLM_MODEL_${i}`]     || process.env.LLM_MODEL     || DEFAULT_MODEL,
+  });
+}
+/* backwards compat: single LLM_API_KEY without number */
+if (llmConfigs.length === 0 && process.env.LLM_API_KEY) {
+  llmConfigs.push({
+    key:   process.env.LLM_API_KEY,
+    url:   process.env.LLM_API_URL   || DEFAULT_URL,
+    model: process.env.LLM_MODEL     || DEFAULT_MODEL,
+  });
+}
 
 if (!TOKEN) {
   console.warn("DISCORD_BOT_TOKEN not set — bot will not start. Set it in .env to enable the Discord bot.");
@@ -96,30 +117,39 @@ function templateAlertMessage(alert) {
 }
 
 async function phraseWithLLM(systemPrompt, data) {
-  if (!USE_LLM || !LLM_API_KEY) return null;
-  try {
-    const res = await fetch(LLM_API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${LLM_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: LLM_MODEL,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user",   content: JSON.stringify(data) },
-        ],
-        max_tokens: 200,
-      }),
-    });
-    if (!res.ok) throw new Error(`LLM returned ${res.status}`);
-    const body = await res.json();
-    return body.choices?.[0]?.message?.content ?? null;
-  } catch (err) {
-    console.warn("LLM call failed, falling back to template:", err.message);
-    return null;
+  if (!USE_LLM || llmConfigs.length === 0) return null;
+
+  const maxAttempts = Math.min(3, llmConfigs.length);
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const cfg = llmConfigs[attempt];
+    try {
+      const res = await fetch(cfg.url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cfg.key}`,
+        },
+        body: JSON.stringify({
+          model: cfg.model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user",   content: JSON.stringify(data) },
+          ],
+          max_tokens: 200,
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const body = await res.json();
+      const content = body.choices?.[0]?.message?.content ?? null;
+      if (content) return content;
+      throw new Error("empty response");
+    } catch (err) {
+      console.warn(`LLM attempt ${attempt + 1}/${maxAttempts} failed (${cfg.url}): ${err.message}`);
+    }
   }
+
+  return null;
 }
 
 /* ── Discord client ────────────────────────────────────── */
