@@ -20,6 +20,20 @@ stands in for an ACS712 current sensor's analog output.
 - 📁 [`diagram.json`](diagram.json) — Wokwi circuit wiring
 - 📁 [`sketch.ino`](sketch.ino) — ESP32 firmware
 
+## Screenshots
+
+### Web Dashboard
+
+![Office Layout](docs/dashboard-office-layout.png)
+
+![Alerts & Power Usage](docs/dashboard-alerts.png)
+
+### Discord Bot
+
+![Discord Bot Commands](docs/discord-bot-commands.png)
+
+![Discord Bot Alerts](docs/discord-bot-alerts.png)
+
 ## Setup
 
 ### 1. Supabase
