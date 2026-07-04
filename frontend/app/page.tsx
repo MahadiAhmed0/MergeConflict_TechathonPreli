@@ -9,11 +9,7 @@ import { PowerConsumption } from '@/components/power-consumption'
 import { ActiveAlerts, type Alert } from '@/components/active-alerts'
 import { ControlBar } from '@/components/control-bar'
 
-// Get backend URL from env or use localhost
-const getBackendUrl = () => {
-  if (typeof window === 'undefined') return 'http://localhost:3001'
-  return process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
-}
+const getBackendUrl = () => process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
 
 // Flatten devices from grouped format to flat array
 const flattenDevices = (grouped: Record<string, Device[]>): Device[] => {
