@@ -13,10 +13,11 @@ export function PowerConsumption({ totalWatts, byRoom }: PowerConsumptionProps) 
     watts: byRoom[room] ?? 0,
   }))
 
-  // Calculate percentage for each room (avoid division by zero)
+  // Calculate percentage for each room based on its maximum capacity (165W)
+  // Each room has 2 fans (60W) and 3 lights (15W) = 165W total
+  const MAX_ROOM_WATTS = 165
   const getRoomPercentage = (watts: number): number => {
-    if (totalWatts === 0) return 0
-    return (watts / totalWatts) * 100
+    return (watts / MAX_ROOM_WATTS) * 100
   }
 
   // Color palette for rooms (cycle through accent colors)
