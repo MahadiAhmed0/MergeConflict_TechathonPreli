@@ -162,7 +162,7 @@ export default function Home() {
       <Header isConnected={isConnected} />
 
       {/* Main Content */}
-      <main className="px-8 py-12">
+      <main className="px-4 md:px-8 py-6 md:py-12">
         {isLoading ? (
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
@@ -181,58 +181,57 @@ export default function Home() {
               <ControlBar
                 backendUrl={getBackendUrl()}
                 onAutoToggleChange={setAutoToggle}
+                devices={devices}
               />
             </div>
 
             {/* Office Layout Panel - Full Width */}
             <div className="mb-12">
-              <Panel title="Office Layout">
-                <OfficeLayout
-                  devices={devices}
-                  onToggleDevice={handleToggleDevice}
-                  autoToggle={autoToggle}
-                />
-              </Panel>
+              <OfficeLayout
+                devices={devices}
+                onToggleDevice={handleToggleDevice}
+                autoToggle={autoToggle}
+              />
             </div>
 
-        {/* Divider */}
-        <div className="border-t-[4px] border-black my-12" />
+            {/* Divider */}
+            <div className="border-t-[4px] border-black my-12" />
 
-        {/* Dashboard Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-          {/* Panel 2: Device Status */}
-          <div className="lg:col-span-1">
-            <Panel title="Device Status">
-              <DeviceStatus devices={devices} />
-            </Panel>
-          </div>
-
-          {/* Panel 3: Power & Alerts */}
-          <div className="lg:col-span-2">
-            <Panel title="Power & Alerts">
-              <div className="space-y-8">
-                {/* Power Consumption Section */}
-                <div>
-                  <h3 className="text-xs font-extrabold uppercase tracking-widest text-black mb-4">
-                    Power Consumption
-                  </h3>
-                  <PowerConsumption totalWatts={powerData.totalWatts} byRoom={powerData.byRoom} />
-                </div>
-
-                {/* Divider */}
-                <div className="border-t-[3px] border-black" />
-
-                {/* Active Alerts Section */}
-                <div>
-                  <h3 className="text-xs font-extrabold uppercase tracking-widest text-black mb-4">
-                    Active Alerts
-                  </h3>
-                  <ActiveAlerts alerts={alerts} />
-                </div>
+            {/* Dashboard Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+              {/* Panel 2: Device Status */}
+              <div className="lg:col-span-1">
+                <Panel title="Device Status">
+                  <DeviceStatus devices={devices} />
+                </Panel>
               </div>
-            </Panel>
-          </div>
-        </div>
+
+              {/* Panel 3: Power & Alerts */}
+              <div className="lg:col-span-2">
+                <Panel title="Power & Alerts">
+                  <div className="space-y-8">
+                    {/* Power Consumption Section */}
+                    <div>
+                      <h3 className="text-xs font-extrabold uppercase tracking-widest text-black mb-4">
+                        Power Consumption
+                      </h3>
+                      <PowerConsumption totalWatts={powerData.totalWatts} byRoom={powerData.byRoom} />
+                    </div>
+
+                    {/* Divider */}
+                    <div className="border-t-[3px] border-black" />
+
+                    {/* Active Alerts Section */}
+                    <div>
+                      <h3 className="text-xs font-extrabold uppercase tracking-widest text-black mb-4">
+                        Active Alerts
+                      </h3>
+                      <ActiveAlerts alerts={alerts} />
+                    </div>
+                  </div>
+                </Panel>
+              </div>
+            </div>
           </>
         )}
       </main>
