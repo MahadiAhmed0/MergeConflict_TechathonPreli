@@ -36,8 +36,7 @@ Fill in these env vars in `.env`:
 | `DISCORD_ALERT_CHANNEL_ID` | No | — | Channel for proactive alert posts |
 | `PORT` | No | `3001` | Backend server port |
 | `API_BASE_URL` | No | `http://localhost:3001` | Used by the bot |
-| `USE_LLM` | No | `false` | Enable OpenAI phrasing |
-| `OPENAI_API_KEY` | No | — | Required if `USE_LLM=true` |
+
 
 Start the backend:
 

@@ -56,4 +56,6 @@ All under `/api` prefix:
 
 ## Discord bot
 
-Commands: `!status` (room-by-room summary), `!room <slug>` (single room), `!usage` (current W + kWh). Proactive alerts poll `GET /api/alerts` every 15 s and post to `DISCORD_ALERT_CHANNEL_ID`. Optional LLM enhancement behind `USE_LLM=true` + `OPENAI_API_KEY`.
+Commands: `!status` (room-by-room summary), `!room <slug>` (single room), `!usage` (current W + kWh). Proactive alerts poll `GET /api/alerts` every 15 s and post to `DISCORD_ALERT_CHANNEL_ID`.
+
+Optional LLM enhancement behind `USE_LLM=true` + `LLM_API_KEY` + `LLM_API_URL` (supports any OpenAI-compatible API: OpenAI, DeepSeek, OpenRouter, Ollama, etc.). Falls back to templates when disabled or API call fails.

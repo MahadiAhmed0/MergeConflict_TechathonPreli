@@ -17,9 +17,10 @@
  * GET /api/alerts and posts new unresolved alerts to
  * DISCORD_ALERT_CHANNEL_ID.
  *
- * Optional LLM enhancement (behind USE_LLM flag): calls
- * OpenAI to phrase responses conversationally; falls back
- * to templates if the flag is off or the API call fails.
+ * Optional LLM enhancement (behind USE_LLM flag): calls a
+ * configurable OpenAI-compatible API (OpenAI, DeepSeek,
+ * OpenRouter, Ollama, etc.) to phrase responses naturally;
+ * falls back to templates if the flag is off or the API fails.
  */
 
 import "dotenv/config";
@@ -31,7 +32,9 @@ const TOKEN            = process.env.DISCORD_BOT_TOKEN;
 const ALERT_CHANNEL_ID = process.env.DISCORD_ALERT_CHANNEL_ID;
 const API_BASE         = process.env.API_BASE_URL || "http://localhost:3001";
 const USE_LLM          = process.env.USE_LLM === "true";
-const OPENAI_API_KEY   = process.env.OPENAI_API_KEY;
+const LLM_API_KEY      = process.env.LLM_API_KEY;
+const LLM_API_URL      = process.env.LLM_API_URL || "https://api.openai.com/v1/chat/completions";
+const LLM_MODEL        = process.env.LLM_MODEL || "gpt-4o-mini";
 const ALERT_POLL_MS    = parseInt(process.env.ALERT_POLL_INTERVAL_MS, 10) || 15_000;
 
 if (!TOKEN) {
@@ -93,16 +96,16 @@ function templateAlertMessage(alert) {
 }
 
 async function phraseWithLLM(systemPrompt, data) {
-  if (!USE_LLM || !OPENAI_API_KEY) return null;
+  if (!USE_LLM || !LLM_API_KEY) return null;
   try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    const res = await fetch(LLM_API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        Authorization: `Bearer ${LLM_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: LLM_MODEL,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user",   content: JSON.stringify(data) },

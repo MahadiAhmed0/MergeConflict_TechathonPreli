@@ -133,7 +133,7 @@ export function OfficeLayout({ devices, onToggleDevice, autoToggle = false }: Of
       {/* ── Mode indicator ─────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
         <span className="text-xs font-extrabold uppercase tracking-widest text-black">
-          Floor Plan — Top View
+          Floor Plan : Top View
         </span>
         {autoToggle ? (
           <span className="text-[10px] font-extrabold uppercase tracking-widest bg-[#16213e] text-[#00D97E] px-3 py-1.5 border-[2px] border-black animate-pulse">
@@ -144,7 +144,7 @@ export function OfficeLayout({ devices, onToggleDevice, autoToggle = false }: Of
             className="text-[10px] font-extrabold uppercase tracking-widest bg-[#FFD400] text-black px-3 py-1.5 border-[2px] border-black"
             style={{ animation: 'softPulse 2s ease-in-out infinite' }}
           >
-            👆 Interactive — Click Devices to Switch
+            👆 Interactive : Click Devices to Switch
           </span>
         )}
       </div>
@@ -152,7 +152,7 @@ export function OfficeLayout({ devices, onToggleDevice, autoToggle = false }: Of
       {/* ── SVG Floor Plan ─────────────────────────────────────────────── */}
       <div className="w-full overflow-hidden border-[4px] border-black shadow-[8px_8px_0px_#000000]">
           <svg
-            viewBox="0 0 930 520"
+            viewBox="0 0 930 620"
             width="100%"
             xmlns="http://www.w3.org/2000/svg"
             style={{ display: 'block' }}
@@ -160,14 +160,17 @@ export function OfficeLayout({ devices, onToggleDevice, autoToggle = false }: Of
 
           {/* ── FLOORS ─────────────────────────────────────────────────── */}
           {/* Outer area (walls) */}
-          <rect x={0} y={0} width={930} height={520} fill="#1a1a1a" />
+          <rect x={0} y={0} width={930} height={620} fill="#1a1a1a" />
           {/* Drawing Room floor */}
           <rect x={8} y={8} width={299} height={504} fill="#F2EFE5" />
           {/* Work Room 1 floor */}
           <rect x={319} y={8} width={300} height={504} fill="#EBE6D6" />
           {/* Work Room 2 floor */}
           <rect x={631} y={8} width={291} height={504} fill="#EBE6D6" />
+          {/* Corridor floor */}
+          <rect x={8} y={520} width={914} height={70} fill="#D9D0B8" />
 
+      
           {/* ── DIVIDING WALLS (with door gaps) ────────────────────────── */}
           {/* Drawing / Work Room 1 — wall, door at y 215–305 */}
 
@@ -180,20 +183,27 @@ export function OfficeLayout({ devices, onToggleDevice, autoToggle = false }: Of
           <path d="M631,215 A90,90 0 0,0 619,305"
             fill="rgba(180,170,145,0.25)" stroke="#888" strokeWidth={1.5} strokeDasharray="5,4" /> */}
 
-          {/* Entry gap in bottom wall  Work Room 1*/}
-          <rect x={370} y={512} width={100} height={8} fill="#C8C0A8" />
-          <line x1={370} y1={512} x2={370} y2={520} stroke="#555" strokeWidth={2} />
-          <line x1={470} y1={512} x2={470} y2={520} stroke="#555" strokeWidth={2} />
-
-          {/* Entry gap in bottom wall  Drawing Room*/}
+          {/* ── Room → Corridor door gaps ──────────────────────────────── */}
+          {/* Drawing Room → Corridor */}
           <rect x={130} y={512} width={100} height={8} fill="#C8C0A8" />
           <line x1={130} y1={512} x2={130} y2={520} stroke="#555" strokeWidth={2} />
           <line x1={230} y1={512} x2={230} y2={520} stroke="#555" strokeWidth={2} />
-
-          {/* Entry gap in bottom wall  Work room 2*/}
+          {/* Work Room 1 → Corridor */}
+          <rect x={370} y={512} width={100} height={8} fill="#C8C0A8" />
+          <line x1={370} y1={512} x2={370} y2={520} stroke="#555" strokeWidth={2} />
+          <line x1={470} y1={512} x2={470} y2={520} stroke="#555" strokeWidth={2} />
+          {/* Work Room 2 → Corridor */}
           <rect x={680} y={512} width={100} height={8} fill="#C8C0A8" />
           <line x1={680} y1={512} x2={680} y2={520} stroke="#555" strokeWidth={2} />
           <line x1={780} y1={512} x2={780} y2={520} stroke="#555" strokeWidth={2} />
+
+          {/* ── Corridor → Outside entry ──────────────────────────────── */}
+          <rect x={415} y={590} width={100} height={8} fill="#C8C0A8" />
+          <line x1={415} y1={590} x2={415} y2={598} stroke="#555" strokeWidth={2} />
+          <line x1={515} y1={590} x2={515} y2={598} stroke="#555" strokeWidth={2} />
+          {/* Door swing arc */}
+          <path d="M515,590 A100,100 0 0,0 415,598"
+            fill="rgba(200,192,168,0.2)" stroke="#888" strokeWidth={1.5} strokeDasharray="5,4" />
 
 
           {/* ── ROOM LABELS ────────────────────────────────────────────── */}
@@ -209,19 +219,10 @@ export function OfficeLayout({ devices, onToggleDevice, autoToggle = false }: Of
             fill="#000" letterSpacing="2" fontFamily="system-ui,sans-serif">
             WORK ROOM 2
           </text>
-
-          {/* Entry label */}
-          <text x={420} y={509} textAnchor="middle" fontSize={8} fontWeight="700"
+          {/* Outside entry label */}
+          <text x={465} y={570} textAnchor="middle" fontSize={8} fontWeight="700"
             fill="#999" letterSpacing="2" fontFamily="system-ui,sans-serif">
-            ↑ ENTRY
-          </text>
-          <text x={175} y={509} textAnchor="middle" fontSize={8} fontWeight="700"
-            fill="#999" letterSpacing="2" fontFamily="system-ui,sans-serif">
-            ↑ ENTRY
-          </text>
-          <text x={725} y={509} textAnchor="middle" fontSize={8} fontWeight="700"
-            fill="#999" letterSpacing="2" fontFamily="system-ui,sans-serif">
-            ↑ ENTRY
+            ↑ OUTSIDE ENTRY
           </text>
 
           {/* ════════════════════════════════════════════════════════════ */}
@@ -371,6 +372,44 @@ export function OfficeLayout({ devices, onToggleDevice, autoToggle = false }: Of
             )
           })}
 
+          {/* ════════════════════════════════════════════════════════════ */}
+          {/*  CORRIDOR — outside entry, plants, air filter                */}
+          {/* ════════════════════════════════════════════════════════════ */}
+
+          {/* ── Air filter unit (center, against back wall) ─── */}
+          <g transform="translate(425,530)">
+            <rect x={450} y={30} width={44} height={12} rx={2} fill="#E0E0E0" stroke="#000" strokeWidth={2} />
+            <rect x={454} y={32} width={12} height={8} rx={1} fill="#BDBDBD" stroke="#000" strokeWidth={1} />
+            <rect x={478} y={32} width={12} height={8} rx={1} fill="#BDBDBD" stroke="#000" strokeWidth={1} />
+          </g>
+        
+
+          {/* ── Plant 1 (left side of corridor) ─── */}
+          <g transform="translate(120,555)">
+            <polygon points="-12,12 12,12 9,-3 -9,-3" fill="#7A5215" stroke="#000" strokeWidth={2} />
+            <rect x={-12} y={-3} width={24} height={5} rx={1} fill="#3E2810" stroke="#000" strokeWidth={1.5} />
+            <ellipse cx={0} cy={-14} rx={10} ry={12} fill="#2E7D32" stroke="#000" strokeWidth={1.5} />
+            <ellipse cx={-8} cy={-8} rx={6} ry={8} fill="#388E3C" stroke="#000" strokeWidth={1}
+              transform="rotate(-30,-8,-8)" />
+            <ellipse cx={8} cy={-8} rx={6} ry={8} fill="#388E3C" stroke="#000" strokeWidth={1}
+              transform="rotate(30,8,-8)" />
+            <circle cx={0} cy={-24} r={3.5} fill="#FFD400" stroke="#000" strokeWidth={1.5} />
+            <circle cx={0} cy={-24} r={1.8} fill="#FF8C00" />
+          </g>
+
+          {/* ── Plant 2 (right side of corridor) ─── */}
+          <g transform="translate(790,555)">
+            <polygon points="-10,10 10,10 7,-2 -7,-2" fill="#7A5215" stroke="#000" strokeWidth={2} />
+            <rect x={-10} y={-2} width={20} height={4} rx={1} fill="#3E2810" stroke="#000" strokeWidth={1.5} />
+            <ellipse cx={0} cy={-12} rx={8} ry={11} fill="#2E7D32" stroke="#000" strokeWidth={1.5} />
+            <ellipse cx={-7} cy={-7} rx={5} ry={7} fill="#388E3C" stroke="#000" strokeWidth={1}
+              transform="rotate(-25,-7,-7)" />
+            <ellipse cx={7} cy={-7} rx={5} ry={7} fill="#388E3C" stroke="#000" strokeWidth={1}
+              transform="rotate(25,7,-7)" />
+            <circle cx={0} cy={-21} r={3} fill="#FFD400" stroke="#000" strokeWidth={1.5} />
+            <circle cx={0} cy={-21} r={1.5} fill="#FF8C00" />
+          </g>
+
         </svg>
       </div>
 
@@ -427,6 +466,19 @@ export function OfficeLayout({ devices, onToggleDevice, autoToggle = false }: Of
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded-sm bg-[#5A5A6A] border-[2px] border-black flex-shrink-0" />
             <span className="text-[10px] font-bold">Chair</span>
+          </div>
+        </div>
+
+        {/* Filter */}
+        <div className="bg-[#F4F1EA] border-[3px] border-black shadow-[3px_3px_0px_#000] p-3">
+          <p className="text-[9px] font-extrabold uppercase tracking-widest mb-2 text-black">Corridor</p>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-4 h-4 bg-[#E0E0E0] border-[2px] border-black flex-shrink-0 rounded-sm" />
+            <span className="text-[10px] font-bold">Air Filter</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded-full bg-[#2E7D32] border-[2px] border-black flex-shrink-0" />
+            <span className="text-[10px] font-bold">Plant</span>
           </div>
         </div>
 
