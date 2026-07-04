@@ -1,18 +1,25 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import type { Device } from '@/components/office-layout'
 
 interface ControlBarProps {
   backendUrl: string
   /** Called whenever the auto-toggle state changes so the parent can react */
   onAutoToggleChange?: (running: boolean) => void
+  devices: Device[]
 }
 
-export function ControlBar({ backendUrl, onAutoToggleChange }: ControlBarProps) {
+export function ControlBar({ backendUrl, onAutoToggleChange, devices }: ControlBarProps) {
   const [autoToggle, setAutoToggle] = useState(true) // optimistic: starts as true (server default)
   const [isLoading, setIsLoading] = useState(false)
   const [bulkLoading, setBulkLoading] = useState<'on' | 'off' | null>(null)
   const [flash, setFlash] = useState<'on' | 'off' | null>(null)
+
+  const allOn = devices.length > 0 && devices.every(d => d.status === 'on')
+  const allOff = devices.length > 0 && devices.every(d => d.status === 'off')
+  const groupState = allOn ? 'all-on' : allOff ? 'all-off' : 'custom'
+
 
   // Fetch real simulator status on mount
   useEffect(() => {
@@ -54,7 +61,7 @@ export function ControlBar({ backendUrl, onAutoToggleChange }: ControlBarProps) 
 
   return (
     <div
-      className="relative border-[4px] border-black shadow-[6px_6px_0px_#000000] p-5 rounded-none flex flex-wrap items-center gap-6 overflow-hidden"
+      className="relative border-[4px] border-black shadow-[6px_6px_0px_#000000] p-4 sm:p-5 rounded-none flex flex-col xl:flex-row items-center justify-between gap-6 overflow-hidden"
       style={{
         background: autoToggle
           ? 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)'
@@ -73,7 +80,9 @@ export function ControlBar({ backendUrl, onAutoToggleChange }: ControlBarProps) 
         />
       )}
 
-      {/* Mode label */}
+      {/* Left Grouping: Mode & Auto Toggle */}
+      <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
+        {/* Mode label */}
       <div className="flex items-center gap-3 mr-2">
         <div
           className={`w-2.5 h-2.5 rounded-full border-[2px] border-black ${
@@ -85,7 +94,7 @@ export function ControlBar({ backendUrl, onAutoToggleChange }: ControlBarProps) 
           className="text-xs font-extrabold uppercase tracking-widest"
           style={{ color: autoToggle ? '#FFFFFF' : '#000000' }}
         >
-          {autoToggle ? '⚡ Auto Mode' : '🎛 Manual Mode'}
+          {autoToggle ? '⚡ Auto Mode' : '👆 Manual Mode'}
         </span>
       </div>
 
@@ -125,49 +134,48 @@ export function ControlBar({ backendUrl, onAutoToggleChange }: ControlBarProps) 
         </span>
         {isLoading ? 'Loading…' : 'Auto Toggle'}
       </button>
+      </div>
 
-      {/* ALL ON button */}
-      <button
-        id="ctrl-all-on"
-        onClick={() => handleBulk('on')}
-        disabled={bulkLoading !== null}
-        className="border-[3px] border-black font-extrabold uppercase text-xs px-5 py-3 cursor-pointer transition-all duration-75 select-none"
-        style={{
-          background: '#FFD400',
-          color: '#000000',
-          boxShadow: '3px 3px 0px #000000',
-          opacity: bulkLoading !== null ? 0.6 : 1,
-        }}
-        title="Turn all devices ON"
+      {/* 3-Way Device State Toggle */}
+      <div 
+        className="flex border-[3px] border-black bg-white shadow-[3px_3px_0px_#000000] select-none transition-opacity"
+        style={{ opacity: autoToggle ? 0.5 : 1, pointerEvents: autoToggle ? 'none' : 'auto' }}
       >
-        {bulkLoading === 'on' ? '⏳ Turning On…' : '☀ All ON'}
-      </button>
-
-      {/* ALL OFF button */}
-      <button
-        id="ctrl-all-off"
-        onClick={() => handleBulk('off')}
-        disabled={bulkLoading !== null}
-        className="border-[3px] border-black font-extrabold uppercase text-xs px-5 py-3 cursor-pointer transition-all duration-75 select-none"
-        style={{
-          background: autoToggle ? '#FFFFFF' : '#000000',
-          color: autoToggle ? '#000000' : '#FFFFFF',
-          boxShadow: '3px 3px 0px ' + (autoToggle ? '#000000' : '#444444'),
-          opacity: bulkLoading !== null ? 0.6 : 1,
-        }}
-        title="Turn all devices OFF"
-      >
-        {bulkLoading === 'off' ? '⏳ Turning Off…' : '🌙 All OFF'}
-      </button>
-
-      {/* Hint */}
-      {!autoToggle && (
-        <div className="ml-auto hidden lg:flex items-center gap-2 border-[2px] border-black bg-[#FFD400] px-3 py-1.5">
-          <span className="text-[10px] font-extrabold uppercase tracking-widest text-black animate-pulse">
-            👆 Click lights &amp; fans on the floor plan below to switch them
-          </span>
+        <button
+          onClick={() => handleBulk('on')}
+          disabled={autoToggle || bulkLoading !== null || groupState === 'all-on'}
+          className="px-4 py-3 text-xs font-extrabold uppercase tracking-widest border-r-[3px] border-black transition-colors disabled:cursor-not-allowed"
+          style={{
+            background: groupState === 'all-on' ? '#FFD400' : 'transparent',
+            color: groupState === 'all-on' ? '#000' : '#666',
+          }}
+          title={autoToggle ? "Disabled during Auto Mode" : "Turn all devices ON"}
+        >
+          {bulkLoading === 'on' ? '...' : '☀ All ON'}
+        </button>
+        <div
+          className="px-4 py-3 text-xs font-extrabold uppercase tracking-widest border-r-[3px] border-black flex items-center justify-center transition-colors"
+          style={{
+            background: groupState === 'custom' ? '#3D5AFE' : 'transparent',
+            color: groupState === 'custom' ? '#FFF' : '#666',
+          }}
+          title="Mixed device states"
+        >
+          Custom
         </div>
-      )}
+        <button
+          onClick={() => handleBulk('off')}
+          disabled={autoToggle || bulkLoading !== null || groupState === 'all-off'}
+          className="px-4 py-3 text-xs font-extrabold uppercase tracking-widest transition-colors disabled:cursor-not-allowed"
+          style={{
+            background: groupState === 'all-off' ? '#000' : 'transparent',
+            color: groupState === 'all-off' ? '#FFF' : '#666',
+          }}
+          title={autoToggle ? "Disabled during Auto Mode" : "Turn all devices OFF"}
+        >
+          {bulkLoading === 'off' ? '...' : '🌙 All OFF'}
+        </button>
+      </div>
 
       <style>{`
         @keyframes flashFade {
