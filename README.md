@@ -2,7 +2,7 @@
 
 A hackathon demo: simulate office lights and fans, control them from a web dashboard or Discord, and get alerts when something's off.
 
-- 🌐 [Live Website](https://mergeconflicttechathon.netlify.app)
+- 🌐 [Live Website](https://merge-conflict-techathon-preli-eight.vercel.app/)
 - 🎥 [Video Demonstration](https://drive.google.com/drive/folders/1mRuIIFJ1lhVMtkSoKEFPmdYKRavpAcEW?usp=drive_link)
 - 💬 [Discord Group](https://discord.gg/utcwHae5mB) — try `!status`, `!room`, `!usage` commands with the bot
 
