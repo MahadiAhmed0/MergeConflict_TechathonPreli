@@ -30,9 +30,32 @@ stands in for an ACS712 current sensor's analog output.
 
 ### Discord Bot
 
-![Discord Bot Commands](docs/discord-bot-commands.png)
+Available commands in any channel the bot can see:
 
-![Discord Bot Alerts](docs/discord-bot-alerts.png)
+```
+!status
+→ Drawing Room: 1 fan, 1 light ON.
+  Work Room 1: all ON — 2 fans, 3 lights.
+  Work Room 2: all off.
+
+!room drawing
+→ Drawing Room: 1 fan, 1 light ON.
+
+!room work1
+→ Work Room 1: all ON — 2 fans, 3 lights.
+
+!usage
+→ Total power right now: 165W. Today's estimated usage: 1.32 kWh.
+```
+
+Proactive alerts are posted automatically to the configured alert channel:
+
+```
+⚠️ drawing — Lights and fans have been on for over 2 hours. Everything has been running for a while — check if it's intentional.
+⚠️ work1 — It's past 5 PM. Did someone forget to leave?
+```
+
+When `USE_LLM=true` and an API key is configured, responses use natural language instead of templates.
 
 ## Setup
 
