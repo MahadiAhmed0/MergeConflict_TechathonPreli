@@ -4,13 +4,21 @@ A hackathon demo: simulate office lights and fans, control them from a web dashb
 
 ## Architecture
 
-```
-Simulated Device Layer  →  Backend API (Express + Supabase Postgres)  →  Web UI + Discord Bot
-                              ↑
-                      In-memory cache (fast reads)
-```
+![High-Level System Design](High-Level-System-Design.jpg)
 
 All 15 devices (3 rooms × 2 fans + 3 lights) are simulated — no physical hardware. The backend serves a REST API backed by an in-memory cache for reads and Supabase Postgres for persistence. A WebSocket endpoint (`/ws`) pushes live state changes. The Discord bot is a separate process that talks only to the REST API.
+
+## Hardware / Electrical Schematic
+
+Representative circuit for Work Room 1 (2 fans + 3 lights), simulated in Wokwi.
+Relays isolate the ESP32's 3.3V logic from the switched load; a potentiometer
+stands in for an ACS712 current sensor's analog output.
+
+![Circuit Schematic](./docs/circuit-schematic.png)
+
+- 🔗 [Open live simulation on Wokwi](https://wokwi.com/projects/468610023296850945)
+- 📁 [`diagram.json`](diagram.json) — Wokwi circuit wiring
+- 📁 [`sketch.ino`](sketch.ino) — ESP32 firmware
 
 ## Setup
 
@@ -24,19 +32,18 @@ Create a project at [supabase.com](https://supabase.com), then open the **SQL Ed
 cd backend
 cp .env.example .env
 npm install
-```
+````
 
 Fill in these env vars in `.env`:
 
-| Variable | Required | Default | Notes |
-|---|---|---|---|
-| `SUPABASE_URL` | Yes | — | Supabase project URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | Yes | — | Service role key (bypasses RLS) |
-| `DISCORD_BOT_TOKEN` | No | — | Required for the bot |
-| `DISCORD_ALERT_CHANNEL_ID` | No | — | Channel for proactive alert posts |
-| `PORT` | No | `3001` | Backend server port |
-| `API_BASE_URL` | No | `http://localhost:3001` | Used by the bot |
-
+| Variable                    | Required | Default                 | Notes                             |
+| --------------------------- | -------- | ----------------------- | --------------------------------- |
+| `SUPABASE_URL`              | Yes      | —                       | Supabase project URL              |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes      | —                       | Service role key (bypasses RLS)   |
+| `DISCORD_BOT_TOKEN`         | No       | —                       | Required for the bot              |
+| `DISCORD_ALERT_CHANNEL_ID`  | No       | —                       | Channel for proactive alert posts |
+| `PORT`                      | No       | `3001`                  | Backend server port               |
+| `API_BASE_URL`              | No       | `http://localhost:3001` | Used by the bot                   |
 
 Start the backend:
 
@@ -65,16 +72,17 @@ A web dashboard (separate repo or directory) should point `NEXT_PUBLIC_BACKEND_U
 
 All endpoints are under the `/api` prefix. CORS is enabled for all origins.
 
-| Endpoint | Method | Description | Source |
-|---|---|---|---|
-| `/api/devices` | GET | All 15 devices grouped by room | Cache |
-| `/api/devices/:room` | GET | Devices in one room (`drawing`, `work1`, `work2`) | Cache |
-| `/api/devices/:id/toggle` | POST | Flip one device's status (no body needed) | DB write |
-| `/api/power` | GET | `{ totalWatts, byRoom }` — total and per-room power | Cache |
-| `/api/usage/today` | GET | `{ currentWatts, estimatedKwhToday }` — from history table | DB |
-| `/api/alerts` | GET | Active (unresolved) alerts | DB |
+| Endpoint                  | Method | Description                                                | Source   |
+| ------------------------- | ------ | ---------------------------------------------------------- | -------- |
+| `/api/devices`            | GET    | All 15 devices grouped by room                             | Cache    |
+| `/api/devices/:room`      | GET    | Devices in one room (`drawing`, `work1`, `work2`)          | Cache    |
+| `/api/devices/:id/toggle` | POST   | Flip one device's status (no body needed)                  | DB write |
+| `/api/power`              | GET    | `{ totalWatts, byRoom }` — total and per-room power        | Cache    |
+| `/api/usage/today`        | GET    | `{ currentWatts, estimatedKwhToday }` — from history table | DB       |
+| `/api/alerts`             | GET    | Active (unresolved) alerts                                 | DB       |
 
 A WebSocket endpoint at `/ws` pushes three message types:
+
 - `snapshot` — full device list + power on connect
 - `device_update` — single device change
 - `power_update` — recomputed totals after a change
