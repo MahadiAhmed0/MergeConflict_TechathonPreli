@@ -3,7 +3,7 @@
 import { AlertTriangle, CheckCircle } from 'lucide-react'
 
 export interface Alert {
-  id: string
+  id: number
   type: 'after_hours' | 'room_stuck_on'
   message: string
   room: string
@@ -55,8 +55,9 @@ export function ActiveAlerts({ alerts }: ActiveAlertsProps) {
   }
 
   return (
-    <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
-      {sortedAlerts.map((alert) => (
+    <div className="bg-white border-[4px] border-black shadow-[4px_4px_0px_#000000] rounded-none p-4 h-[380px] flex flex-col">
+      <div className="space-y-4 pr-2 flex-1 overflow-y-auto min-h-0">
+        {sortedAlerts.map((alert) => (
         <div
           key={alert.id}
           className="bg-white border-[3px] border-black border-l-[6px] border-l-[#FF3B3B] shadow-[3px_3px_0px_#000000] rounded-none p-4"
@@ -91,6 +92,7 @@ export function ActiveAlerts({ alerts }: ActiveAlertsProps) {
           </div>
         </div>
       ))}
+      </div>
     </div>
   )
 }

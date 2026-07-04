@@ -31,7 +31,7 @@ import * as devices from "../devices/index.js";
 const OFFICE_HOURS_START = 9;   // 9 AM
 const OFFICE_HOURS_END   = 17;  // 5 PM
 const STUCK_ON_MS        = 2 * 60 * 60 * 1000;  // 2 hours
-const CHECK_INTERVAL_MS  = 60_000;
+const CHECK_INTERVAL_MS  = parseInt(process.env.ALERT_CHECK_INTERVAL_MS, 10) || 1_800_000; // 30 min by default
 
 /* ─ check logic ────────────────────────────────────────── */
 
@@ -67,15 +67,19 @@ async function checkAlerts(onNewAlert) {
         room,
       });
       onNewAlert(alert);
-    } else if (!isOffHours && afterHoursAlert) {
-      await devices.resolveAlert(afterHoursAlert.id);
+    } else if (afterHoursAlert && (!isOffHours || !roomHasDeviceOn)) {
+      const resolved = await devices.resolveAlert(afterHoursAlert.id);
+      onNewAlert({ type: "alert_resolved", alert: resolved });
     }
 
     /* ── 2. room_stuck_on ── */
     const allOn = roomDevices.every(d => d.status === "on");
 
     if (!allOn) {
-      if (stuckOnAlert) await devices.resolveAlert(stuckOnAlert.id);
+      if (stuckOnAlert) {
+        const resolved = await devices.resolveAlert(stuckOnAlert.id);
+        onNewAlert({ type: "alert_resolved", alert: resolved });
+      }
       continue;   /* nothing stuck — move to next room */
     }
 

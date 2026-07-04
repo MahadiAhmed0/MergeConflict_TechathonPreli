@@ -4,9 +4,10 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import apiRouter from "./src/api/index.js";
-import { attachWebSocket, broadcastAlert } from "./src/realtime/index.js";
+import { attachWebSocket, broadcastAlert, broadcastAlertResolution } from "./src/realtime/index.js";
 import { startAlertEngine } from "./src/alerts/index.js";
 import { initDevices, startSimulator } from "./src/devices/index.js";
+import { startBot, postAlertToDiscord } from "./src/bot/index.js";
 
 const PORT = parseInt(process.env.PORT, 10) || 3001;
 
@@ -40,15 +41,22 @@ server.on("listening", async () => {
   try {
     await initDevices();
     startSimulator(5000);
+    await startBot();
   } catch (err) {
     console.error("Startup failed:", err.message);
     process.exit(1);
   }
+
+  startAlertEngine((msg) => {
+    if (msg.type === "alert_resolved") {
+      broadcastAlertResolution(msg.alert);
+      console.log("Alert resolved:", msg.alert.message);
+    } else {
+      broadcastAlert(msg.alert ?? msg);
+      postAlertToDiscord(msg.alert ?? msg);
+      console.log("Alert:", (msg.alert ?? msg).message);
+    }
+  });
 });
 
 attachWebSocket(server);
-
-startAlertEngine((alert) => {
-  broadcastAlert(alert);
-  console.log("Alert:", alert.message);
-});

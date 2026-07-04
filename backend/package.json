@@ -8,7 +8,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "bot": "node src/bot/index.js"
+    "bot": "node -e \"console.error('Bot is now integrated into server.js — just run \\`npm start\\` or \\`npm run dev\\`')\""
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",

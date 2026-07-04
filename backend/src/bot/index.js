@@ -1,11 +1,8 @@
-#!/usr/bin/env node
 /*
- * ── Discord bot (standalone process) ─────────────────────
+ * ── Discord bot module ───────────────────────────────────
  *
- * Started via `npm run bot --prefix backend`.
- *
- * Talks to the backend ONLY through its REST API (never
- * imports /src/devices or /src/db directly) so there is one
+ * Imported by server.js (not a standalone process anymore).
+ * Calls the backend through its REST API so there is one
  * source of truth — the server's in-memory cache + Postgres.
  *
  * Commands:
@@ -13,9 +10,8 @@
  *   !room <slug>    —  single-room status (drawing|work1|work2)
  *   !usage          —  current W + estimated kWh today
  *
- * Proactive alert polling: every N seconds checks
- * GET /api/alerts and posts new unresolved alerts to
- * DISCORD_ALERT_CHANNEL_ID.
+ * Alerts are received via the onNewAlert callback from the
+ * alert engine, then posted to DISCORD_ALERT_CHANNEL_ID.
  *
  * Optional LLM enhancement (behind USE_LLM flag): calls a
  * configurable OpenAI-compatible API (OpenAI, DeepSeek,
@@ -32,7 +28,6 @@ const TOKEN            = process.env.DISCORD_BOT_TOKEN;
 const ALERT_CHANNEL_ID = process.env.DISCORD_ALERT_CHANNEL_ID;
 const API_BASE         = process.env.API_BASE_URL || "http://localhost:3001";
 const USE_LLM          = process.env.USE_LLM === "true";
-const ALERT_POLL_MS    = parseInt(process.env.ALERT_POLL_INTERVAL_MS, 10) || 15_000;
 
 /* ── multi-LLM config (up to 5 keys, tried in order, up to 3 attempts) ── */
 
@@ -56,11 +51,6 @@ if (llmConfigs.length === 0 && process.env.LLM_API_KEY) {
     url:   process.env.LLM_API_URL   || DEFAULT_URL,
     model: process.env.LLM_MODEL     || DEFAULT_MODEL,
   });
-}
-
-if (!TOKEN) {
-  console.warn("DISCORD_BOT_TOKEN not set — bot will not start. Set it in .env to enable the Discord bot.");
-  process.exit(0);
 }
 
 /* ── HTTP helpers ───────────────────────────────────────── */
@@ -152,108 +142,120 @@ async function phraseWithLLM(systemPrompt, data) {
   return null;
 }
 
-/* ── Discord client ────────────────────────────────────── */
+/* ── state ──────────────────────────────────────────────── */
 
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-  ],
-});
-
-client.once("ready", () => {
-  console.log(`Discord bot logged in as ${client.user.tag}`);
-  startAlertPolling();
-});
-
-/* ── command handlers ──────────────────────────────────── */
-
-client.on("messageCreate", async (msg) => {
-  if (msg.author.bot) return;
-
-  try {
-    if (msg.content === "!status") {
-      const data  = await apiGet("/api/devices");
-      const reply = await phraseWithLLM(
-        "Given the room-by-room device data, write a short status summary for Discord. Be concise. Use emoji sparingly.",
-        data
-      ) ?? templateStatusResponse(data);
-      await msg.reply(reply);
-
-    } else if (msg.content.startsWith("!room ")) {
-      const slug  = msg.content.slice(6).trim().toLowerCase();
-      const data  = await apiGet(`/api/devices/${slug}`);
-      const reply = await phraseWithLLM(
-        "Given the device data for a single room, write a short status for Discord. Be concise.",
-        data
-      ) ?? templateRoomResponse(data);
-      await msg.reply(reply);
-
-    } else if (msg.content === "!usage") {
-      const data  = await apiGet("/api/usage/today");
-      const reply = await phraseWithLLM(
-        "Given the power usage data, write a short sentence for Discord with the current wattage and estimated kWh today.",
-        data
-      ) ?? templateUsageResponse(data);
-      await msg.reply(reply);
-    }
-  } catch (err) {
-    /* don't crash on a single command error */
-    console.error("Command error:", err.message);
-    if (err.message.includes("returned 404") || err.message.includes("returned 400")) {
-      await msg.reply("I couldn't find that. Try `!room drawing`, `!room work1`, or `!room work2`.");
-    } else {
-      await msg.reply("Something went wrong. Is the backend server running?");
-    }
-  }
-});
-
-/* ── proactive alert polling ───────────────────────────── */
-
+let client = null;
+let botReady = false;
 const postedAlertIds = new Set();
 
-function startAlertPolling() {
-  /* seed already-active alerts so they aren't re-posted */
-  apiGet("/api/alerts").then(alerts => {
-    for (const a of alerts) postedAlertIds.add(a.id);
-    console.log(`Seeded ${alerts.length} existing alerts (will not re-post).`);
-  }).catch(() => {});
+/* ── export: post an alert to the Discord channel ───────── */
 
-  if (!ALERT_CHANNEL_ID) {
-    console.warn("DISCORD_ALERT_CHANNEL_ID not set — proactive alerts disabled.");
+/**
+ * Called by server.js's alert engine callback.
+ * Posts the alert to DISCORD_ALERT_CHANNEL_ID if the bot is ready.
+ * Deduplicates by alert id so the same alert isn't posted twice.
+ */
+export async function postAlertToDiscord(alert) {
+  if (!botReady || !ALERT_CHANNEL_ID) return;
+  if (postedAlertIds.has(alert.id)) return;
+  postedAlertIds.add(alert.id);
+
+  try {
+    const channel = await client.channels.fetch(ALERT_CHANNEL_ID);
+    if (!channel) {
+      console.error(`Discord channel ${ALERT_CHANNEL_ID} not found.`);
+      return;
+    }
+
+    const message = await phraseWithLLM(
+      "You are a helpful building management assistant. Given the alert JSON, write a brief natural warning message for Discord. Keep it under 200 characters. Use emoji sparingly.",
+      alert
+    ) ?? templateAlertMessage(alert);
+
+    await channel.send(message);
+  } catch (err) {
+    console.error("Discord alert post error:", err.message);
+  }
+}
+
+/* ── export: start the bot ───────────────────────────────── */
+
+/**
+ * Start the Discord bot. Call once from server.js after the
+ * Express server is listening.
+ *
+ * Seeds already-active alerts so they aren't re-posted.
+ */
+export async function startBot() {
+  if (!TOKEN) {
+    console.warn("DISCORD_BOT_TOKEN not set — Discord bot disabled.");
     return;
   }
 
-  setInterval(async () => {
+  /* seed existing alerts so they won't be re-posted */
+  try {
+    const alerts = await apiGet("/api/alerts");
+    for (const a of alerts) postedAlertIds.add(a.id);
+    console.log(`Discord: seeded ${alerts.length} existing alerts.`);
+  } catch (_) { /* server may not be ready yet */ }
+
+  client = new Client({
+    intents: [
+      GatewayIntentBits.Guilds,
+      GatewayIntentBits.GuildMessages,
+      GatewayIntentBits.MessageContent,
+    ],
+  });
+
+  client.once("clientReady", () => {
+    botReady = true;
+    console.log(`Discord bot logged in as ${client.user.tag}`);
+  });
+
+  /* ── command handlers ────────────────────────────────── */
+
+  client.on("messageCreate", async (msg) => {
+    if (msg.author.bot) return;
+
     try {
-      const alerts = await apiGet("/api/alerts");
-      for (const alert of alerts) {
-        if (postedAlertIds.has(alert.id)) continue;
-        postedAlertIds.add(alert.id);
+      if (msg.content === "!status") {
+        const data  = await apiGet("/api/devices");
+        const reply = await phraseWithLLM(
+          "Given the room-by-room device data, write a short status summary for Discord. Be concise. Use emoji sparingly.",
+          data
+        ) ?? templateStatusResponse(data);
+        await msg.reply(reply);
 
-        const channel = await client.channels.fetch(ALERT_CHANNEL_ID).catch(() => null);
-        if (!channel) {
-          console.error(`Could not fetch channel ${ALERT_CHANNEL_ID}.`);
-          continue;
-        }
+      } else if (msg.content.startsWith("!room ")) {
+        const slug  = msg.content.slice(6).trim().toLowerCase();
+        const data  = await apiGet(`/api/devices/${slug}`);
+        const reply = await phraseWithLLM(
+          "Given the device data for a single room, write a short status for Discord. Be concise.",
+          data
+        ) ?? templateRoomResponse(data);
+        await msg.reply(reply);
 
-        const message = await phraseWithLLM(
-          "You are a helpful building management assistant. Given the alert JSON, write a brief natural warning message for Discord. Keep it under 200 characters. Use emoji sparingly.",
-          alert
-        ) ?? templateAlertMessage(alert);
-
-        await channel.send(message);
+      } else if (msg.content === "!usage") {
+        const data  = await apiGet("/api/usage/today");
+        const reply = await phraseWithLLM(
+          "Given the power usage data, write a short sentence for Discord with the current wattage and estimated kWh today.",
+          data
+        ) ?? templateUsageResponse(data);
+        await msg.reply(reply);
       }
     } catch (err) {
-      console.error("Alert polling error:", err.message);
+      console.error("Command error:", err.message);
+      if (err.message.includes("returned 404") || err.message.includes("returned 400")) {
+        await msg.reply("I couldn't find that. Try `!room drawing`, `!room work1`, or `!room work2`.");
+      } else {
+        await msg.reply("Something went wrong. Is the backend server running?");
+      }
     }
-  }, ALERT_POLL_MS);
+  });
+
+  try {
+    await client.login(TOKEN);
+  } catch (err) {
+    console.error("Discord login failed:", err.message);
+  }
 }
-
-/* ── start ──────────────────────────────────────────────── */
-
-client.login(TOKEN).catch(err => {
-  console.error("Discord login failed:", err.message);
-  process.exit(1);
-});

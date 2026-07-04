@@ -114,3 +114,13 @@ export function broadcastAlert(alert) {
     }
   }
 }
+
+export function broadcastAlertResolution(alert) {
+  if (!wss) return;
+  const msg = JSON.stringify({ type: "alert_resolved", alert });
+  for (const client of wss.clients) {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(msg);
+    }
+  }
+}

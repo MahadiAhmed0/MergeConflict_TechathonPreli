@@ -16,7 +16,7 @@ Required env vars: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (server exits wit
 - **`src/devices/`** — the ONLY module that imports `src/db/`. Owns cache + business logic.
   - API, realtime, alerts, and bot must talk to devices **only** through its exported interface (`getAllDevices`, `getDevice`, `setDeviceState`, `subscribe`, `unsubscribe`).
   - `setDeviceState(id, "on"|"off")` awaits a Postgres round-trip before updating the cache — this is intentional for data safety.
-- The Discord bot is a **separate process** started via `npm run bot --prefix backend` (not part of `server.js`). It talks to the backend **only** through REST API calls — never imports devices/db directly.
+- The Discord bot runs **inside server.js** (not a separate process). It talks to the backend **only** through REST API calls — never imports devices/db directly.
 
 ## Fixed device layout (15 total)
 
@@ -38,7 +38,7 @@ Tables (`devices`, `device_history`, `alerts`) must exist. If `devices` is empty
 
 ## Alert engine
 
-`startAlertEngine(onNewAlert)` runs in `server.js` every 60 s. Checks two conditions: after_hours (outside 9AM–5PM) and room_stuck_on (all devices in a room on for >2h). Alerts persist to `alerts` table in Postgres, deduplicated by (type, room). New alerts fire the `onNewAlert` callback which broadcasts via WebSocket and logs to console.
+`startAlertEngine(onNewAlert)` runs in `server.js` every 30 min. Checks two conditions: after_hours (outside 9AM–5PM) and room_stuck_on (all devices in a room on for >2h). Alerts persist to `alerts` table in Postgres, deduplicated by (type, room). New alerts fire the `onNewAlert` callback which broadcasts via WebSocket and logs to console.
 
 ## ESM
 
@@ -56,6 +56,6 @@ All under `/api` prefix:
 
 ## Discord bot
 
-Commands: `!status` (room-by-room summary), `!room <slug>` (single room), `!usage` (current W + kWh). Proactive alerts poll `GET /api/alerts` every 15 s and post to `DISCORD_ALERT_CHANNEL_ID`.
+Commands: `!status` (room-by-room summary), `!room <slug>` (single room), `!usage` (current W + kWh). Proactive alerts are pushed from the alert engine callback and posted to `DISCORD_ALERT_CHANNEL_ID`.
 
 Optional LLM enhancement behind `USE_LLM=true` + `LLM_API_KEY` + `LLM_API_URL` (supports any OpenAI-compatible API: OpenAI, DeepSeek, OpenRouter, Ollama, etc.). Falls back to templates when disabled or API call fails.

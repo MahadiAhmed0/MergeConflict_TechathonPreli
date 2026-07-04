@@ -87,6 +87,9 @@ export default function Home() {
             } else if (message.type === 'alert') {
               // Add new alert
               setAlerts((prev) => [message.alert, ...prev])
+            } else if (message.type === 'alert_resolved') {
+              // Remove resolved alert
+              setAlerts((prev) => prev.filter((a) => a.id !== message.alert.id))
             }
           } catch (error) {
             console.error('[v0] Failed to parse WebSocket message:', error)

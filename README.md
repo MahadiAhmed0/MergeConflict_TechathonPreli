@@ -2,11 +2,14 @@
 
 A hackathon demo: simulate office lights and fans, control them from a web dashboard or Discord, and get alerts when something's off.
 
+- 🌐 [Live Website](https://mergeconflicttechathon.netlify.app)
+- 🎥 [Video Demonstration](https://drive.google.com/drive/folders/1mRuIIFJ1lhVMtkSoKEFPmdYKRavpAcEW?usp=drive_link)
+
 ## Architecture
 
 ![High-Level System Design](High-Level-System-Design.png)
 
-All 15 devices (3 rooms × 2 fans + 3 lights) are simulated — no physical hardware. The backend serves a REST API backed by an in-memory cache for reads and Supabase Postgres for persistence. A WebSocket endpoint (`/ws`) pushes live state changes. The Discord bot is a separate process that talks only to the REST API.
+All 15 devices (3 rooms × 2 fans + 3 lights) are simulated, no physical hardware. The backend serves a REST API backed by an in-memory cache for reads and Supabase Postgres for persistence. A WebSocket endpoint (`/ws`) pushes live state changes. The Discord bot is a separate process that talks only to the REST API.
 
 ## Hardware / Electrical Schematic
 
@@ -17,16 +20,16 @@ stands in for an ACS712 current sensor's analog output.
 ![Circuit Schematic](./docs/circuit-schematic.png)
 
 - 🔗 [Open live simulation on Wokwi](https://wokwi.com/projects/468610023296850945)
-- 📁 [`diagram.json`](diagram.json) — Wokwi circuit wiring
-- 📁 [`sketch.ino`](sketch.ino) — ESP32 firmware
+- 📁 [`diagram.json`](diagram.json) : Wokwi circuit wiring
+- 📁 [`sketch.ino`](sketch.ino) : ESP32 firmware
 
 ## Screenshots
 
 ### Web Dashboard
 
-![Office Layout](docs/dashboard-office-layout.png)
-
-![Alerts & Power Usage](docs/dashboard-alerts.png)
+![Office Layout](dashboard-office-layout.png)
+![Device Status](device-status.png)
+![Alerts & Power Usage](dashboard-alerts.png)
 
 ### Discord Bot
 
@@ -35,14 +38,14 @@ Available commands in any channel the bot can see:
 ```
 !status
 → Drawing Room: 1 fan, 1 light ON.
-  Work Room 1: all ON — 2 fans, 3 lights.
+  Work Room 1: all ON : 2 fans, 3 lights.
   Work Room 2: all off.
 
 !room drawing
 → Drawing Room: 1 fan, 1 light ON.
 
 !room work1
-→ Work Room 1: all ON — 2 fans, 3 lights.
+→ Work Room 1: all ON : 2 fans, 3 lights.
 
 !usage
 → Total power right now: 165W. Today's estimated usage: 1.32 kWh.
@@ -51,8 +54,8 @@ Available commands in any channel the bot can see:
 Proactive alerts are posted automatically to the configured alert channel:
 
 ```
-⚠️ drawing — Lights and fans have been on for over 2 hours. Everything has been running for a while — check if it's intentional.
-⚠️ work1 — It's past 5 PM. Did someone forget to leave?
+⚠️ drawing Lights and fans have been on for over 2 hours. Everything has been running for a while check if it's intentional.
+⚠️ work1 It's past 5 PM. Did someone forget to leave?
 ```
 
 When `USE_LLM=true` and an API key is configured, responses use natural language instead of templates.
@@ -88,7 +91,7 @@ Start the backend:
 npm run dev          # watch mode (node --watch)
 ```
 
-On first start, the backend generates 15 devices with random state and upserts them to Supabase. On subsequent starts it loads existing rows from the DB — state and history survive restarts.
+On first start, the backend generates 15 devices with random state and upserts them to Supabase. On subsequent starts it loads existing rows from the DB state and history survive restarts.
 
 ### 3. Discord bot (optional)
 
@@ -109,20 +112,20 @@ A web dashboard (separate repo or directory) should point `NEXT_PUBLIC_BACKEND_U
 
 All endpoints are under the `/api` prefix. CORS is enabled for all origins.
 
-| Endpoint                  | Method | Description                                                | Source   |
-| ------------------------- | ------ | ---------------------------------------------------------- | -------- |
-| `/api/devices`            | GET    | All 15 devices grouped by room                             | Cache    |
-| `/api/devices/:room`      | GET    | Devices in one room (`drawing`, `work1`, `work2`)          | Cache    |
-| `/api/devices/:id/toggle` | POST   | Flip one device's status (no body needed)                  | DB write |
-| `/api/power`              | GET    | `{ totalWatts, byRoom }` — total and per-room power        | Cache    |
-| `/api/usage/today`        | GET    | `{ currentWatts, estimatedKwhToday }` — from history table | DB       |
-| `/api/alerts`             | GET    | Active (unresolved) alerts                                 | DB       |
+| Endpoint                  | Method | Description                                              | Source   |
+| ------------------------- | ------ | -------------------------------------------------------- | -------- |
+| `/api/devices`            | GET    | All 15 devices grouped by room                           | Cache    |
+| `/api/devices/:room`      | GET    | Devices in one room (`drawing`, `work1`, `work2`)        | Cache    |
+| `/api/devices/:id/toggle` | POST   | Flip one device's status (no body needed)                | DB write |
+| `/api/power`              | GET    | `{ totalWatts, byRoom }` total and per-room power        | Cache    |
+| `/api/usage/today`        | GET    | `{ currentWatts, estimatedKwhToday }` from history table | DB       |
+| `/api/alerts`             | GET    | Active (unresolved) alerts                               | DB       |
 
 A WebSocket endpoint at `/ws` pushes three message types:
 
-- `snapshot` — full device list + power on connect
-- `device_update` — single device change
-- `power_update` — recomputed totals after a change
+- `snapshot` full device list + power on connect
+- `device_update` single device change
+- `power_update` recomputed totals after a change
 
 ## Known limitations
 
