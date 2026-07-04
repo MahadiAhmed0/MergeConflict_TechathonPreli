@@ -3,8 +3,8 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Smart Office Dashboard',
-  description: 'Neo-Brutalist Smart Office Dashboard',
+  title: 'MergeConflict_Smart_Office',
+  description: 'MergeConflict_Smart_Officed',
   generator: 'v0.app',
 }
 
