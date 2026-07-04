@@ -4,7 +4,7 @@ A hackathon demo: simulate office lights and fans, control them from a web dashb
 
 ## Architecture
 
-![High-Level System Design](High-Level-System-Design.jpg)
+![High-Level System Design](High-Level-System-Design.png)
 
 All 15 devices (3 rooms × 2 fans + 3 lights) are simulated — no physical hardware. The backend serves a REST API backed by an in-memory cache for reads and Supabase Postgres for persistence. A WebSocket endpoint (`/ws`) pushes live state changes. The Discord bot is a separate process that talks only to the REST API.
 
@@ -32,7 +32,7 @@ Create a project at [supabase.com](https://supabase.com), then open the **SQL Ed
 cd backend
 cp .env.example .env
 npm install
-````
+```
 
 Fill in these env vars in `.env`:
 
